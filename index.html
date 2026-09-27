@@ -465,12 +465,12 @@
             <div x-show="currentTab === 'subsidiaries'" class="space-y-6 max-w-7xl mx-auto">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h2 class="text-xl font-bold text-white">子会社経営・グループ会社</h2>
-                        <p class="text-sm text-slate-400">新たな分野に子会社を設立し、グループ全体の収益基盤を強固にしましょう。</p>
+                        <h2 class="text-xl font-bold text-white">子会社経営・グループ会社 (拡張版)</h2>
+                        <p class="text-sm text-slate-400">テック、金融、エンタメからグローバル展開まで多種多様な子会社を設立し、グループ全体の収益基盤を強固にしましょう。</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto pr-2">
                     <template x-for="sub in subsidiaries" :key="sub.id">
                         <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
                             <div>
@@ -478,7 +478,7 @@
                                     <span class="text-xs px-3 py-1 rounded-xl font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30" x-text="sub.industry"></span>
                                     <span class="text-xs font-semibold px-2.5 py-1 rounded-xl" :class="sub.owned ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'" x-text="sub.owned ? '営業中' : '未設立'"></span>
                                 </div>
-                                <h3 class="font-bold text-lg text-white mb-2" x-text="sub.name"></h3>
+                                <h3 class="font-bold text-base text-white mb-2" x-text="sub.name"></h3>
                                 <p class="text-xs text-slate-400 mb-6" x-text="sub.description"></p>
                                 
                                 <div class="space-y-2 mb-6 text-xs bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
@@ -490,6 +490,10 @@
                                         <span class="text-slate-400">想定月間利益:</span>
                                         <span class="font-bold font-mono text-emerald-400" x-text="formatCurrency(sub.monthlyProfit)"></span>
                                     </div>
+                                    <div class="flex justify-between" x-show="sub.owned">
+                                        <span class="text-slate-400">予想売却価格:</span>
+                                        <span class="font-bold font-mono text-indigo-300" x-text="formatCurrency(sub.assetValue * 1.2)"></span>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -497,9 +501,14 @@
                                 <button @click="foundSubsidiary(sub)" class="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 text-white font-semibold text-xs transition" x-show="!sub.owned">
                                     子会社を設立する
                                 </button>
-                                <div x-show="sub.owned" class="flex items-center justify-between bg-slate-950/80 p-3 rounded-2xl border border-slate-800 text-xs">
-                                    <span class="text-slate-300">グループ利益貢献中</span>
-                                    <span class="font-mono font-bold text-emerald-400" x-text="'+ ' + formatCurrency(sub.monthlyProfit) + '/月'"></span>
+                                <div x-show="sub.owned" class="flex flex-col gap-2">
+                                    <div class="w-full bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 text-xs flex items-center justify-between">
+                                        <span class="text-slate-300">利益貢献中</span>
+                                        <span class="font-mono font-bold text-emerald-400" x-text="'+ ' + formatCurrency(sub.monthlyProfit) + '/月'"></span>
+                                    </div>
+                                    <button @click="sellSubsidiary(sub)" class="w-full py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-semibold text-xs transition">
+                                        売却 (利確)
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -693,9 +702,12 @@
                 <h3 class="text-lg font-bold text-white" x-text="currentEvent ? currentEvent.title : ''"></h3>
             </div>
             <p class="text-sm text-slate-300 leading-relaxed" x-text="currentEvent ? currentEvent.description : ''"></p>
-            <div class="pt-4 flex gap-3 justify-end">
+            <div class="pt-4 flex flex-col gap-2.5">
                 <template x-for="choice in (currentEvent ? currentEvent.choices : [])">
-                    <button @click="handleEventChoice(choice)" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow transition" x-text="choice.text"></button>
+                    <button @click="handleEventChoice(choice)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-700 text-left transition flex items-center justify-between">
+                        <span x-text="choice.text"></span>
+                        <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                    </button>
                 </template>
             </div>
         </div>
@@ -771,10 +783,18 @@
                 ],
 
                 subsidiaries: [
-                    { id: 1, name: 'ネオAIラボ株式会社', industry: '人工知能開発', cost: 10000000, monthlyProfit: 250000, owned: false, assetValue: 8000000 },
-                    { id: 2, name: 'フィンテックネオ証券', industry: '金融・決済', cost: 25000000, monthlyProfit: 650000, owned: false, assetValue: 20000000 },
-                    { id: 3, name: 'ネオコマース流通', industry: 'EC・小売', cost: 15000000, monthlyProfit: 380000, owned: false, assetValue: 12000000 },
-                    { id: 4, name: 'ネオメディア・パブリッシング', industry: 'メディア・広告', cost: 8000000, monthlyProfit: 180000, owned: false, assetValue: 6000000 }
+                    { id: 1, name: 'ネオAIラボ株式会社', industry: '人工知能開発', cost: 10000000, monthlyProfit: 250000, owned: false, assetValue: 8000000, description: '最先端の生成AIモデルおよび機械学習アルゴリズムを研究開発する中核子会社。' },
+                    { id: 2, name: 'フィンテックネオ証券', industry: '金融・決済', cost: 25000000, monthlyProfit: 650000, owned: false, assetValue: 20000000, description: 'オンライン証券およびキャッシュレス決済システムを提供する高収益企業。' },
+                    { id: 3, name: 'ネオコマース流通', industry: 'EC・小売', cost: 15000000, monthlyProfit: 380000, owned: false, assetValue: 12000000, description: '国内外の特選雑貨やデジタルガジェットを扱う大型ECプラットフォーム。' },
+                    { id: 4, name: 'ネオメディア・パブリッシング', industry: 'メディア・広告', cost: 8000000, monthlyProfit: 180000, owned: false, assetValue: 6000000, description: 'Webマーケティング、ニュースメディア運営、インフルエンサー事務所。' },
+                    { id: 5, name: 'ネオクラウドインフラ', industry: 'クラウド・SaaS', cost: 35000000, monthlyProfit: 950000, owned: false, assetValue: 30000000, description: '企業向けの大規模サーバーレス環境やデータベース基盤を提供するインフラ企業。' },
+                    { id: 6, name: 'ネオロボティクス', industry: 'ハードウェア', cost: 50000000, monthlyProfit: 1400000, owned: false, assetValue: 42000000, description: '自動化倉庫ロボットやスマートホームデバイスを製造・販売する先端ハード企業。' },
+                    { id: 7, name: 'ネオバイオメディカル', industry: 'ヘルスケア', cost: 40000000, monthlyProfit: 1100000, owned: false, assetValue: 34000000, description: '遺伝子解析やオンライン医療プラットフォームを展開するバイオベンチャー。' },
+                    { id: 8, name: 'ネオゲームス・スタジオ', industry: 'エンターテインメント', cost: 18000000, monthlyProfit: 450000, owned: false, assetValue: 15000000, description: '大ヒットスマホゲームやメタバース空間の構築を手がけるエンタメ企業。' },
+                    { id: 9, name: 'ネオグリーン・エナジー', industry: 'クリーンエネルギー', cost: 60000000, monthlyProfit: 1800000, owned: false, assetValue: 50000000, description: '太陽光・風力発電ファームの運営および次世代蓄電池の開発事業。' },
+                    { id: 10, name: 'ネオグローバル不動産', industry: '不動産開発', cost: 80000000, monthlyProfit: 2500000, owned: false, assetValue: 70000000, description: '都心の一等地や商業ビルの開発・マネジメントを行うグループ最大の投資会社。' },
+                    { id: 11, name: 'ネオセキュリティ・プロ', industry: 'サイバーセキュリティ', cost: 22000000, monthlyProfit: 580000, owned: false, assetValue: 18000000, description: '企業のサイバー攻撃対策、脆弱性診断、SOC監視サービスを提供する専門企業。' },
+                    { id: 12, name: 'ネオ宇宙開発イニシアチブ', industry: '宇宙ビジネス', cost: 150000000, monthlyProfit: 5000000, owned: false, assetValue: 130000000, description: '小型人工衛星の打ち上げや宇宙ゴミ除去技術に挑む最先端コングロマリット企業。' }
                 ],
 
                 activeProjects: [],
@@ -797,7 +817,7 @@
                     this.generateCandidates();
                     this.addLog('会社を設立しました。事業を加速していきましょう！');
                     
-                    // 時間経過：10秒ごとに1日進む仕様（非常にゆったりした設定）
+                    // 時間経過：10秒ごとに1日進む仕様
                     setInterval(() => {
                         if (!this.isPaused && !this.isGameOver) {
                             this.gameTick();
@@ -849,7 +869,7 @@
                     
                     this.activeProjects = this.activeProjects.filter(p => p.id !== project.id);
                     
-                    if (Math.random() < 0.3) {
+                    if (Math.random() < 0.35) {
                         this.triggerRandomEvent();
                     }
                 },
@@ -863,7 +883,7 @@
 
                     let stockDividends = this.getTotalStockDividends();
                     this.stocks.forEach(stock => {
-                        let change = (Math.random() * 0.1 - 0.04);
+                        let change = (Math.random() * 0.27 - 0.12);
                         stock.price = Math.max(100, Math.floor(stock.price * (1 + change)));
                     });
 
@@ -982,6 +1002,15 @@
                     this.company.funds -= sub.cost;
                     sub.owned = true;
                     this.addLog(`子会社「${sub.name}」を設立しました！グループ全体に毎月利益が貢献します。`);
+                },
+
+                sellSubsidiary(sub) {
+                    let sellPrice = Math.floor(sub.assetValue * 1.2);
+                    let profit = sellPrice - sub.cost;
+                    this.company.funds += sellPrice;
+                    this.company.lastMonthRevenue = (this.company.lastMonthRevenue || 0) + sellPrice;
+                    sub.owned = false;
+                    this.addLog(`子会社「${sub.name}」を売却し、利益確定しました！ 売却益: ¥${sellPrice.toLocaleString()} (純利益: ¥${profit.toLocaleString()})`);
                 },
 
                 getDateString() {
@@ -1131,11 +1160,45 @@
 
                 triggerRandomEvent() {
                     const events = [
+                        // --- 災害・インフラ障害系イベント（収入圧迫） ---
+                        {
+                            title: '【災害・停電】大規模台風によるオフィス被災',
+                            description: '大型台風が直撃し、オフィスの窓ガラス破損および一時的な停電が発生！復旧費用と業務遅延による売上への打撃が生じています。',
+                            choices: [
+                                { text: '緊急復旧・補修工事を行う (費用-¥350,000)', action: () => { this.company.funds -= 350000; this.addLog('台風災害の復旧工事を迅速に行い、被害を最小限に抑えました。'); } },
+                                { text: '最低限の自力復旧ですませる (売上一時圧迫-¥500,000)', action: () => { this.company.lastMonthRevenue = Math.max(0, (this.company.lastMonthRevenue || 0) - 500000); this.addLog('災害による業務停止で今期売上が大幅に圧迫されました。'); } }
+                            ]
+                        },
+                        {
+                            title: '【インフラ障害】クラウドサーバーの大規模障害',
+                            description: '利用している大手クラウド基盤がダウン！運営中のWebサービスや進行案件のデータ検証に深刻な遅れが生じ、クライアントからの損害賠償リスクが発生しています。',
+                            choices: [
+                                { text: '専用の冗長回線を手配して急場を凌ぐ (費用-¥400,000)', action: () => { this.company.funds -= 400000; this.addLog('即座にバックアップ環境を構築し、クライアントへの信頼を守りました。'); } },
+                                { text: '復旧を待つ (信用低下＆売上遅延-¥600,000)', action: () => { this.company.reputation = Math.max(0, this.company.reputation - 15); this.company.lastMonthRevenue = Math.max(0, (this.company.lastMonthRevenue || 0) - 600000); this.addLog('サーバー障害の影響で案件遅延が発生し、会社の信頼と売上に大打撃を受けました。'); } }
+                            ]
+                        },
+                        {
+                            title: '【災害】関東圏を襲う突然の震度5強の地震',
+                            description: '突然の強い地震により、社内のサーバーラックやPC機器が転倒。精密機器の買い替えと安全点検が必要になりました。',
+                            choices: [
+                                { text: '専門業者に点検と機器交換を依頼 (費用-¥450,000)', action: () => { this.company.funds -= 450000; this.addLog('地震による被害機器を速やかに新品へ交換し、業務を再開しました。'); } },
+                                { text: '中古パーツで安価にDIY復旧 (スキル低下)', action: () => { if(this.employees.length > 0) { this.employees[0].skill = Math.max(10, this.employees[0].skill - 10); } this.addLog('社員総出で復旧にあたりましたが、業務効率が一時的に低下しました。'); } }
+                            ]
+                        },
+                        {
+                            title: '【社会リスク】新型ウイルスの流行と出社制限',
+                            description: '感染症の急拡大により、全社員の出社禁止およびリモートワークへの完全移行を余儀なくされました。システム導入やセキュリティ対策に追加コストがかかります。',
+                            choices: [
+                                { text: 'リモート環境と手当を即座に整備 (費用-¥300,000)', action: () => { this.company.funds -= 300000; this.addLog('リモートワーク体制を迅速に整え、感染リスクを回避しました。'); } },
+                                { text: '対策を先送りして業務を継続 (モラール激減)', action: () => { this.employees.forEach(e => e.morale = Math.max(10, e.morale - 25)); this.addLog('感染対策の不備から社員の不安と不満が爆発し、モラールが急低下しました。'); } }
+                            ]
+                        },
+                        // --- 通常・チャンス・その他のイベント ---
                         {
                             title: '大口クライアントからの追加案件打診',
                             description: '既存の取引先から、追加機能開発の緊急依頼が舞い込みました。引き受けますか？',
                             choices: [
-                                { text: '快諾する (報酬+¥500k)', action: () => { this.company.funds += 500000; this.company.lastMonthRevenue += 500000; this.addLog('追加案件の報酬を獲得しました！'); } },
+                                { text: '快諾する (報酬+¥500,000)', action: () => { this.company.funds += 500000; this.company.lastMonthRevenue += 500000; this.addLog('追加案件の報酬を獲得しました！'); } },
                                 { text: '辞退する', action: () => { this.addLog('追加案件を辞退しました。'); } }
                             ]
                         },
@@ -1143,7 +1206,7 @@
                             title: '優秀なエンジニアのヘッドハンティング',
                             description: '他社からの引き抜きオファーがあり、社員が転職を考えているようです。対応を迫られています。',
                             choices: [
-                                { text: '月給を+¥50k昇給させて引き止める', action: () => { if(this.employees.length > 0) { this.employees[0].salary += 50000; this.addLog('社員の給与を昇給させ、離職を防ぎました。'); } } },
+                                { text: '月給を+¥50,000昇給させて引き止める', action: () => { if(this.employees.length > 0) { this.employees[0].salary += 50000; this.addLog('社員の給与を昇給させ、離職を防ぎました。'); } } },
                                 { text: '特に引き止めず様子を見る', action: () => { this.addLog('引き止めませんでしたが、運良く残留してくれました。'); } }
                             ]
                         },
@@ -1156,41 +1219,10 @@
                             ]
                         },
                         {
-                            title: 'オフィスビルの突然の賃料値上げ',
-                            description: 'ビルオーナーから、周辺相場の上昇に伴い来月から家賃を10%引き上げると通告がありました。',
-                            choices: [
-                                { text: '受け入れて継続入居する', action: () => { this.company.funds -= 100000; this.addLog('ビルオーナーと交渉の末、一時金として¥100kを支払いました。'); } },
-                                { text: '別の場所へオフィス移転を検討する', action: () => { this.company.reputation = Math.max(0, this.company.reputation - 5); this.addLog('移転タスクにより一時的に混乱が生じ、知名度が微減しました。'); } }
-                            ]
-                        },
-                        {
-                            title: '社内トラブル・システムの誤作動',
-                            description: '開発中のシステムでバグが発生し、クライアントに謝罪と修正対応が必要になりました。',
-                            choices: [
-                                { text: 'エンジニアに残業手当を出す (費用¥150k)', action: () => { this.company.funds -= 150000; this.addLog('特別手当を支給し、迅速にバグを修正しました。信頼死守！'); } },
-                                { text: '通常の稼働内で何とか直させる', action: () => { this.company.reputation = Math.max(0, this.company.reputation - 10); this.addLog('対応が遅れ、会社の信用がわずかに低下しました。'); } }
-                            ]
-                        },
-                        {
                             title: 'SNSで自社サービスがバズる！',
                             description: '社員がSNSに投稿した会社のユーモア溢れる開発風景が、インフルエンサーに取り上げられ大バズりしました！',
                             choices: [
-                                { text: 'キャンペーン施策に繋げる (資金+¥300k, 知名度+30)', action: () => { this.company.funds += 300000; this.company.reputation += 30; this.addLog('バズの波に乗り、新規案件の問い合わせと売上が急増しました！'); } }
-                            ]
-                        },
-                        {
-                            title: '税務調査の実施',
-                            description: '国税庁からの連絡があり、今期の税務調査が入ることになりました。適正な申告が行われています。',
-                            choices: [
-                                { text: '税理士費用を払い万全の体制で臨む (費用¥200k)', action: () => { this.company.funds -= 200000; this.addLog('専門家の立ち会いのもと、無事に税務調査をクリアしました。'); } }
-                            ]
-                        },
-                        {
-                            title: '社員発案の新規プロダクト企画',
-                            description: '若手社員から「新規自社サービスを作りたい」という熱い企画書が提出されました。',
-                            choices: [
-                                { text: '開発予算を投資する (費用¥400k, スキル向上)', action: () => { this.company.funds -= 400000; if(this.employees.length > 0) { this.employees[0].skill += 15; } this.addLog('新規プロダクトの開発に挑戦し、社員のスキルとモチベーションが急上昇しました！'); } },
-                                { text: '本業に集中させるため見送る', action: () => { this.addLog('今回は見送りとしました。既存案件に注力します。'); } }
+                                { text: 'キャンペーン施策に繋げる (資金+¥300,000, 知名度+30)', action: () => { this.company.funds += 300000; this.company.reputation += 30; this.addLog('バズの波に乗り、新規案件の問い合わせと売上が急増しました！'); } }
                             ]
                         }
                     ];
