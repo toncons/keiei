@@ -69,7 +69,6 @@
                     <span x-text="getDateString()"></span>
                     <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-500/30 font-mono" x-text="company.day + '日目 (全30日)'"></span>
                 </div>
-                <!-- Progress bar for current month -->
                 <div class="w-32 bg-slate-800 rounded-full h-1.5 mt-1.5 overflow-hidden">
                     <div class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-1.5 rounded-full transition-all duration-300" :style="'width: ' + ((company.day / 30) * 100) + '%'"></div>
                 </div>
@@ -115,13 +114,17 @@
             </button>
             <button @click="currentTab = 'finance'; $nextTick(() => updateFinanceCharts())" :class="currentTab === 'finance' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'" class="flex items-center space-x-3 px-4 py-3 rounded-2xl font-medium text-sm transition">
                 <i class="fa-solid fa-file-invoice-dollar w-5"></i>
-                <span>財務 (詳細 BS / PL)</span>
+                <span>財務 (詳細 BS / PL / CF)</span>
             </button>
             
             <div class="pt-4 mt-auto border-t border-slate-800">
                 <button @click="saveGame()" class="w-full mb-2 flex items-center justify-center space-x-2 px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition shadow">
                     <i class="fa-solid fa-floppy-disk"></i>
-                    <span>ゲームをセーブ</span>
+                    <span>ゲームをセーブ (ローカル)</span>
+                </button>
+                <button @click="openGasModal = true" class="w-full mb-2 flex items-center justify-center space-x-2 px-4 py-3 rounded-2xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-indigo-200 transition shadow">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>スプレッドシート連携</span>
                 </button>
                 <button @click="resetGameModal = true" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-semibold text-rose-400 border border-rose-500/20 transition">
                     <i class="fa-solid fa-rotate-right"></i>
@@ -147,8 +150,8 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
-                        <div class="text-xs text-slate-400 font-medium mb-1">会社評価 (企業価値)</div>
-                        <div class="text-2xl font-bold font-mono text-white" x-text="formatCurrency(calculateCompanyValue())"></div>
+                        <div class="text-xs text-slate-400 font-medium mb-1">純資産 (企業価値)</div>
+                        <div class="text-2xl font-bold font-mono text-white" x-text="formatCurrency(calculateNetAssets())"></div>
                         <div class="text-xs text-emerald-400 mt-2 flex items-center gap-1">
                             <i class="fa-solid fa-arrow-trend-up"></i> <span>順調に成長中</span>
                         </div>
@@ -241,6 +244,33 @@
                     <button @click="refreshProjects()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 rounded-2xl transition flex items-center gap-2 shadow">
                         <i class="fa-solid fa-rotate"></i> 案件リストを更新
                     </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl" x-show="activeProjects.length > 0">
+                    <h3 class="text-base font-bold text-white mb-4 flex items-center justify-between">
+                        <span><i class="fa-solid fa-spinner fa-spin text-indigo-400 mr-2"></i> 現在進行中の開発・案件 (<span x-text="activeProjects.length"></span>件)</span>
+                        <span class="text-xs text-slate-400">社員の総労働力で自動進行中</span>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <template x-for="project in activeProjects" :key="project.id">
+                            <div class="bg-slate-950/80 border border-indigo-500/30 p-4 rounded-2xl shadow-inner">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h4 class="font-bold text-sm text-white" x-text="project.name"></h4>
+                                        <p class="text-xs text-emerald-400 font-mono" x-text="'報酬: ' + formatCurrency(project.reward)"></p>
+                                    </div>
+                                    <span class="text-xs font-semibold px-2.5 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" x-text="project.category"></span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden border border-slate-700/50">
+                                    <div class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-3 rounded-full transition-all duration-300" :style="'width: ' + project.progress + '%'"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-slate-300">
+                                    <span>進捗率: <strong class="text-indigo-400 font-mono" x-text="project.progress.toFixed(1) + '%'"></strong></span>
+                                    <span x-text="'残り工数: ' + Math.max(0, project.workRequired - project.workDone).toFixed(0) + ' pt'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -365,39 +395,35 @@
 
             <div x-show="currentTab === 'investments'" class="space-y-6 max-w-7xl mx-auto">
                 <div>
-                    <h2 class="text-xl font-bold text-white">投資・株式・不動産取引</h2>
-                    <p class="text-sm text-slate-400">株式市場での運用や、土地・不動産の売買を行って資産を多角的に増やしましょう。</p>
+                    <h2 class="text-xl font-bold text-white">投資・株式・不動産・資金調達</h2>
+                    <p class="text-sm text-slate-400">株式市場での運用、不動産の売買、および銀行からの融資による資金調達を行えます。</p>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
                         <div>
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-base font-bold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-chart-line text-emerald-400"></i> 株式投資 (Stocks)
                                 </h3>
-                                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-xl border border-emerald-500/30">配当毎月受取</span>
+                                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-xl border border-emerald-500/30">配当受取</span>
                             </div>
-                            <p class="text-xs text-slate-400 mb-6">安定株や成長株に投資して、毎月の配当金や株価の値上がり益を狙います。</p>
+                            <p class="text-xs text-slate-400 mb-6">安定株や成長株に投資して配当金や売却益を狙います。</p>
 
                             <div class="space-y-3 mb-6">
                                 <template x-for="stock in stocks" :key="stock.id">
-                                    <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                                    <div class="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex justify-between items-center text-xs">
                                         <div>
-                                            <div class="font-bold text-sm text-white" x-text="stock.name"></div>
-                                            <div class="text-xs text-slate-400">現在株価: <strong class="text-emerald-400 font-mono" x-text="formatCurrency(stock.price)"></strong> (保有: <span x-text="stock.shares"></span>株)</div>
+                                            <div class="font-bold text-white" x-text="stock.name"></div>
+                                            <div class="text-[10px] text-slate-400"><span class="text-emerald-400 font-mono" x-text="formatCurrency(stock.price)"></span> (保有:<span x-text="stock.shares"></span>株)</div>
                                         </div>
-                                        <div class="flex gap-2">
-                                            <button @click="buyStock(stock)" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow transition">購入 (100株)</button>
-                                            <button @click="sellStock(stock)" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold shadow transition" x-show="stock.shares > 0">売却</button>
+                                        <div class="flex gap-1.5">
+                                            <button @click="buyStock(stock)" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold shadow">購入</button>
+                                            <button @click="sellStock(stock)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold border border-slate-700">売却</button>
                                         </div>
                                     </div>
                                 </template>
                             </div>
-                        </div>
-                        <div class="bg-slate-950/40 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 flex justify-between">
-                            <span>株式評価額合計: <strong class="text-emerald-400 font-mono" x-text="formatCurrency(getTotalStockValue())"></strong></span>
-                            <span>月間配当収入: <strong class="text-indigo-300 font-mono" x-text="formatCurrency(getTotalStockDividends())"></strong></span>
                         </div>
                     </div>
 
@@ -405,59 +431,62 @@
                         <div>
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-base font-bold text-white flex items-center gap-2">
-                                    <i class="fa-solid fa-city text-indigo-400"></i> 土地・不動産売買 (Real Estate)
+                                    <i class="fa-solid fa-building-user text-purple-400"></i> 不動産 (Real Estate)
                                 </h3>
-                                <span class="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-xl border border-indigo-500/30">家賃収入あり</span>
+                                <span class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-xl border border-purple-500/30">毎月賃料</span>
                             </div>
-                            <p class="text-xs text-slate-400 mb-6">不動産を購入することで毎月の賃料収入が得られ、将来的に資産価値が上昇します。</p>
+                            <p class="text-xs text-slate-400 mb-6">テナントやオフィスを購入してインカムゲインを得ます。</p>
 
                             <div class="space-y-3 mb-6">
-                                <template x-for="property in properties" :key="property.id">
-                                    <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                                <template x-for="prop in realEstates" :key="prop.id">
+                                    <div class="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 flex justify-between items-center text-xs">
                                         <div>
-                                            <div class="font-bold text-sm text-white" x-text="property.name"></div>
-                                            <div class="text-xs text-slate-400">価格: <strong class="text-emerald-400 font-mono" x-text="formatCurrency(property.price)"></strong> / 家賃収入: <span class="text-indigo-300 font-mono" x-text="formatCurrency(property.monthlyRent)"></span>/月</div>
+                                            <div class="font-bold text-white" x-text="prop.name"></div>
+                                            <div class="text-[10px] text-slate-400">価格: <span class="text-purple-400 font-mono" x-text="formatCurrency(prop.price)"></span></div>
                                         </div>
                                         <div>
-                                            <button @click="buyProperty(property)" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow transition" x-show="!property.owned">購入する</button>
-                                            <button @click="sellProperty(property)" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow transition" x-show="property.owned">売却する</button>
+                                            <template x-if="!prop.owned">
+                                                <button @click="buyRealEstate(prop)" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-semibold shadow">購入</button>
+                                            </template>
+                                            <template x-if="prop.owned">
+                                                <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded-lg font-bold">保有中</span>
+                                            </template>
                                         </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
-                        <div class="bg-slate-950/40 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 flex justify-between">
-                            <span>保有不動産数: <strong class="text-white font-mono" x-text="properties.filter(p => p.owned).length"></strong> 件</span>
-                            <span>月間家賃収入合計: <strong class="text-emerald-400 font-mono" x-text="formatCurrency(getTotalPropertyIncome())"></strong></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
-                        <div>
-                            <div class="p-3.5 bg-indigo-500/20 text-indigo-400 rounded-2xl w-fit mb-4 border border-indigo-500/30">
-                                <i class="fa-solid fa-bullhorn text-xl"></i>
-                            </div>
-                            <h3 class="font-bold text-base text-white mb-2">SNS・Web広告キャンペーン</h3>
-                            <p class="text-xs text-slate-400 mb-6">知名度が向上し、より大型の案件を獲得しやすくなります。 (費用: ¥200,000)</p>
-                        </div>
-                        <button @click="investMarketing()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-2xl shadow transition">
-                            広告を出稿する
-                        </button>
                     </div>
 
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
                         <div>
-                            <div class="p-3.5 bg-emerald-500/20 text-emerald-400 rounded-2xl w-fit mb-4 border border-emerald-500/30">
-                                <i class="fa-solid fa-building-user text-xl"></i>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-landmark text-amber-400"></i> 銀行融資 (Financing)
+                                </h3>
+                                <span class="text-xs bg-amber-500/20 text-amber-300 px-3 py-1 rounded-xl border border-amber-500/30">負債追加</span>
                             </div>
-                            <h3 class="font-bold text-base text-white mb-2">本社オフィス拡張 (Lv.<span x-text="company.level"></span>)</h3>
-                            <p class="text-xs text-slate-400 mb-6">オフィスをアップグレードし、会社の信頼性と採用上限を大幅に向上させます。</p>
+                            <p class="text-xs text-slate-400 mb-6">銀行から資金を借り入れ、負債（借入金）として資金力を高めます。</p>
+
+                            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-3 mb-6 text-xs">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">現在借入残高:</span>
+                                    <span class="font-mono text-rose-400 font-bold" x-text="formatCurrency(company.loans)"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-400">融資枠上限:</span>
+                                    <span class="font-mono text-indigo-300">¥100,000,000</span>
+                                </div>
+                            </div>
                         </div>
-                        <button @click="upgradeOffice()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-2xl shadow transition">
-                            オフィスを拡張する (<span x-text="formatCurrency(company.level * 1000000)"></span>)
-                        </button>
+                        <div class="space-y-2">
+                            <button @click="takeLoan(5000000)" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow transition">
+                                銀行から融資を受ける (+¥5,000,000)
+                            </button>
+                            <button @click="repayLoan(5000000)" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl border border-slate-700 transition">
+                                借入金を返済する (-¥5,000,000)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -465,51 +494,43 @@
             <div x-show="currentTab === 'subsidiaries'" class="space-y-6 max-w-7xl mx-auto">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h2 class="text-xl font-bold text-white">子会社経営・グループ会社 (拡張版)</h2>
-                        <p class="text-sm text-slate-400">テック、金融、エンタメからグローバル展開まで多種多様な子会社を設立し、グループ全体の収益基盤を強固にしましょう。</p>
+                        <h2 class="text-xl font-bold text-white">子会社経営・M&A</h2>
+                        <p class="text-sm text-slate-400">新規事業の子会社を設立・買収し、コングロマリット企業グループを構築します。</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto pr-2">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <template x-for="sub in subsidiaries" :key="sub.id">
                         <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
                             <div>
                                 <div class="flex justify-between items-start mb-3">
                                     <span class="text-xs px-3 py-1 rounded-xl font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30" x-text="sub.industry"></span>
-                                    <span class="text-xs font-semibold px-2.5 py-1 rounded-xl" :class="sub.owned ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'" x-text="sub.owned ? '営業中' : '未設立'"></span>
+                                    <span class="text-xs text-slate-400">売上規模: 大</span>
                                 </div>
                                 <h3 class="font-bold text-base text-white mb-2" x-text="sub.name"></h3>
                                 <p class="text-xs text-slate-400 mb-6" x-text="sub.description"></p>
-                                
                                 <div class="space-y-2 mb-6 text-xs bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
                                     <div class="flex justify-between">
-                                        <span class="text-slate-400">設立初期費用:</span>
-                                        <span class="font-bold font-mono text-rose-400" x-text="formatCurrency(sub.cost)"></span>
+                                        <span class="text-slate-400">設立/買収費用:</span>
+                                        <span class="font-bold font-mono text-purple-400" x-text="formatCurrency(sub.cost)"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-slate-400">想定月間利益:</span>
-                                        <span class="font-bold font-mono text-emerald-400" x-text="formatCurrency(sub.monthlyProfit)"></span>
-                                    </div>
-                                    <div class="flex justify-between" x-show="sub.owned">
-                                        <span class="text-slate-400">予想売却価格:</span>
-                                        <span class="font-bold font-mono text-indigo-300" x-text="formatCurrency(sub.assetValue * 1.2)"></span>
+                                        <span class="font-bold font-mono text-emerald-400" x-text="formatCurrency(sub.monthlyIncome)"></span>
                                     </div>
                                 </div>
                             </div>
-                            
                             <div>
-                                <button @click="foundSubsidiary(sub)" class="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 text-white font-semibold text-xs transition" x-show="!sub.owned">
-                                    子会社を設立する
-                                </button>
-                                <div x-show="sub.owned" class="flex flex-col gap-2">
-                                    <div class="w-full bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 text-xs flex items-center justify-between">
-                                        <span class="text-slate-300">利益貢献中</span>
-                                        <span class="font-mono font-bold text-emerald-400" x-text="'+ ' + formatCurrency(sub.monthlyProfit) + '/月'"></span>
-                                    </div>
-                                    <button @click="sellSubsidiary(sub)" class="w-full py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-semibold text-xs transition">
-                                        売却 (利確)
+                                <template x-if="!sub.owned">
+                                    <button @click="buySubsidiary(sub)" class="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 text-white font-semibold text-xs transition">
+                                        子会社として買収・設立する
                                     </button>
-                                </div>
+                                </template>
+                                <template x-if="sub.owned">
+                                    <div class="w-full py-3 text-center rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs">
+                                        グループ会社として稼働中
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </template>
@@ -517,163 +538,122 @@
             </div>
 
             <div x-show="currentTab === 'finance'" class="space-y-6 max-w-7xl mx-auto">
-                <div>
-                    <h2 class="text-xl font-bold text-white">詳細財務諸表 (BS / PL) ＆ 収益分析</h2>
-                    <p class="text-sm text-slate-400">詳細な貸借対照表(BS)、損益計算書(PL)、銀行融資、および資産の推移グラフを確認できます。</p>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold text-white">財務諸表 (BS / PL / CF)</h2>
+                        <p class="text-sm text-slate-400">会社の貸借対照表（BS）、損益計算書（PL）、およびキャッシュフロー計算書（CF）の詳細です。</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Balance Sheet with Assets, Liabilities, and Net Assets -->
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-white mb-4 flex items-center justify-between">
+                                <span>貸借対照表 (BS)</span>
+                                <span class="text-xs text-slate-400 font-mono">単位: 円</span>
+                            </h3>
+                            <div class="space-y-4 text-sm">
+                                <!-- 資産の部 -->
+                                <div>
+                                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">【 資産の部 】</div>
+                                    <div class="space-y-2">
+                                        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex justify-between text-xs">
+                                            <span class="text-slate-300">現金および預金</span>
+                                            <span class="font-mono text-emerald-400" x-text="formatCurrency(company.funds)"></span>
+                                        </div>
+                                        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex justify-between text-xs">
+                                            <span class="text-slate-300">保有不動産・資産</span>
+                                            <span class="font-mono text-purple-400" x-text="formatCurrency(calculateRealEstateValue())"></span>
+                                        </div>
+                                        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex justify-between text-xs">
+                                            <span class="text-slate-300">保有有価証券</span>
+                                            <span class="font-mono text-indigo-400" x-text="formatCurrency(calculateStockValue())"></span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 p-3 bg-slate-950/80 rounded-xl border border-slate-800 flex justify-between font-bold text-xs text-white">
+                                        <span>資産合計</span>
+                                        <span class="font-mono text-emerald-400" x-text="formatCurrency(calculateTotalAssets())"></span>
+                                    </div>
+                                </div>
+
+                                <!-- 負債・純資産の部 -->
+                                <div>
+                                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">【 負債・純資産の部 】</div>
+                                    <div class="space-y-2">
+                                        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex justify-between text-xs">
+                                            <span class="text-slate-300">有利子負債 (銀行借入)</span>
+                                            <span class="font-mono text-rose-400" x-text="formatCurrency(company.loans)"></span>
+                                        </div>
+                                        <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex justify-between text-xs">
+                                            <span class="text-slate-300">純資産 (資本・利益剰余金)</span>
+                                            <span class="font-mono text-indigo-300" x-text="formatCurrency(calculateNetAssets())"></span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 p-3 bg-indigo-950/40 rounded-xl border border-indigo-500/30 flex justify-between font-bold text-xs text-white">
+                                        <span>負債・純資産合計</span>
+                                        <span class="font-mono text-indigo-400" x-text="formatCurrency(calculateTotalAssets())"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
+                        <h3 class="text-base font-bold text-white mb-4 flex items-center justify-between">
+                            <span>損益計算書 (PL)</span>
+                            <span class="text-xs text-slate-400 font-mono">直近月実績</span>
+                        </h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800 flex justify-between">
+                                <span class="text-slate-300">売上高 (Revenue)</span>
+                                <span class="font-mono text-emerald-400" x-text="formatCurrency(company.lastMonthRevenue || 0)"></span>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800 flex justify-between">
+                                <span class="text-slate-300">人件費・社員給与</span>
+                                <span class="font-mono text-rose-400" x-text="'- ' + formatCurrency(getTotalSalaries())"></span>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800 flex justify-between">
+                                <span class="text-slate-300">不動産・投資収入</span>
+                                <span class="font-mono text-indigo-400" x-text="'+ ' + formatCurrency(getTotalPassiveIncome())"></span>
+                            </div>
+                            <div class="p-4 bg-indigo-950/40 rounded-2xl border border-indigo-500/30 flex justify-between font-bold text-white">
+                                <span>当月純利益</span>
+                                <span class="font-mono" :class="company.monthlyProfit >= 0 ? 'text-indigo-400' : 'text-rose-400'" x-text="formatCurrency(company.monthlyProfit)"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
+                        <h3 class="text-base font-bold text-white mb-4 flex items-center justify-between">
+                            <span>キャッシュフロー (CF)</span>
+                            <span class="text-xs text-slate-400 font-mono">直近月増減</span>
+                        </h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 flex justify-between text-xs">
+                                <span class="text-slate-300">営業CF (本業収支)</span>
+                                <span class="font-mono" :class="lastCashFlow.operating >= 0 ? 'text-emerald-400' : 'text-rose-400'" x-text="formatCurrency(lastCashFlow.operating)"></span>
+                            </div>
+                            <div class="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 flex justify-between text-xs">
+                                <span class="text-slate-300">投資CF (設備投資・株等)</span>
+                                <span class="font-mono" :class="lastCashFlow.investing >= 0 ? 'text-emerald-400' : 'text-rose-400'" x-text="formatCurrency(lastCashFlow.investing)"></span>
+                            </div>
+                            <div class="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 flex justify-between text-xs">
+                                <span class="text-slate-300">財務CF (借入・返済等)</span>
+                                <span class="font-mono" :class="lastCashFlow.financing >= 0 ? 'text-emerald-400' : 'text-rose-400'" x-text="formatCurrency(lastCashFlow.financing)"></span>
+                            </div>
+                            <div class="p-4 bg-indigo-950/40 rounded-2xl border border-indigo-500/30 flex justify-between font-bold text-white text-xs">
+                                <span>現金増減合計 (Net CF)</span>
+                                <span class="font-mono" :class="lastCashFlow.net >= 0 ? 'text-indigo-400' : 'text-rose-400'" x-text="formatCurrency(lastCashFlow.net)"></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl">
-                    <h3 class="text-base font-bold text-white mb-4">月次 利益推移グラフ</h3>
+                    <h3 class="text-base font-bold text-white mb-4">月次財務データ推移グラフ</h3>
                     <div class="h-64 w-full">
                         <canvas id="financeChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                            <h3 class="text-base font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-scale-balanced text-indigo-400"></i> 貸借対照表 (Balance Sheet)
-                            </h3>
-                            <span class="text-xs bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-xl border border-indigo-500/30 font-mono" x-text="getDateString() + ' 現在'"></span>
-                        </div>
-
-                        <div class="space-y-4 text-sm">
-                            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-2">
-                                <div class="font-bold text-xs text-indigo-400 uppercase tracking-wider mb-2">■ 流動資産 (Current Assets)</div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">現金預金</span>
-                                    <span class="font-mono text-emerald-400 font-bold" x-text="formatCurrency(company.funds)"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">保有株式資産評価額</span>
-                                    <span class="font-mono text-emerald-400" x-text="formatCurrency(getTotalStockValue())"></span>
-                                </div>
-                                
-                                <div class="font-bold text-xs text-indigo-400 uppercase tracking-wider pt-3 mb-2 border-t border-slate-800">■ 固定資産 (Fixed Assets)</div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">本社オフィス・設備 (Lv.<span x-text="company.level"></span>)</span>
-                                    <span class="font-mono text-slate-200" x-text="formatCurrency(company.level * 1500000)"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">保有不動産・子会社資産</span>
-                                    <span class="font-mono text-slate-200" x-text="formatCurrency(getTotalPropertyAssetValue() + getTotalSubsidiaryAssetValue())"></span>
-                                </div>
-
-                                <div class="flex justify-between text-xs pt-3 border-t border-slate-800 font-bold">
-                                    <span class="text-white">総資産合計 (Total Assets)</span>
-                                    <span class="font-mono text-indigo-300 text-base" x-text="formatCurrency(company.funds + getTotalStockValue() + (company.level * 1500000) + getTotalPropertyAssetValue() + getTotalSubsidiaryAssetValue())"></span>
-                                </div>
-                            </div>
-
-                            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-2">
-                                <div class="font-bold text-xs text-amber-400 uppercase tracking-wider mb-2">■ 負債の部 (Liabilities)</div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">短期・長期借入金 (銀行融資)</span>
-                                    <span class="font-mono text-rose-400" x-text="formatCurrency(company.debt)"></span>
-                                </div>
-
-                                <div class="font-bold text-xs text-emerald-400 uppercase tracking-wider pt-3 mb-2 border-t border-slate-800">■ 純資産の部 (Net Assets / Equity)</div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">資本金・利益剰余金</span>
-                                    <span class="font-mono text-emerald-400" x-text="formatCurrency(Math.max(0, (company.funds + getTotalStockValue() + (company.level * 1500000) + getTotalPropertyAssetValue() + getTotalSubsidiaryAssetValue()) - company.debt))"></span>
-                                </div>
-
-                                <div class="flex justify-between text-xs pt-3 border-t border-slate-800 font-bold">
-                                    <span class="text-white">負債・純資産合計 (Total Liab. & Equity)</span>
-                                    <span class="font-mono text-amber-300 text-base" x-text="formatCurrency(company.funds + getTotalStockValue() + (company.level * 1500000) + getTotalPropertyAssetValue() + getTotalSubsidiaryAssetValue())"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                            <h3 class="text-base font-bold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> 損益計算書 (Profit & Loss Statement)
-                            </h3>
-                            <span class="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-xl border border-emerald-500/30 font-mono">直近月次集計</span>
-                        </div>
-
-                        <div class="space-y-4 text-sm">
-                            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-2.5">
-                                <div class="font-bold text-xs text-emerald-400 uppercase tracking-wider mb-1">■ 営業収益 (Operating Revenue)</div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">① プロジェクト受託売上高</span>
-                                    <span class="font-mono text-emerald-400 font-bold" x-text="formatCurrency(company.lastMonthRevenue || 0)"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">② 不動産賃料収入 (家賃)</span>
-                                    <span class="font-mono text-emerald-400" x-text="formatCurrency(getTotalPropertyIncome())"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">③ 子会社からの配当・利益</span>
-                                    <span class="font-mono text-emerald-400" x-text="formatCurrency(getTotalSubsidiaryIncome())"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">④ 株式配当収入</span>
-                                    <span class="font-mono text-emerald-400" x-text="formatCurrency(getTotalStockDividends())"></span>
-                                </div>
-
-                                <div class="font-bold text-xs text-rose-400 uppercase tracking-wider pt-3 mb-1 border-t border-slate-800">■ 営業費用 (Operating Expenses)</div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">⑤ 人件費 (社員給与総額)</span>
-                                    <span class="font-mono text-rose-400" x-text="'- ' + formatCurrency(calculateTotalSalaries())"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">⑥ オフィス地代家賃・維持費</span>
-                                    <span class="font-mono text-rose-400" x-text="'- ' + formatCurrency(company.level * 150000)"></span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-slate-300">⑦ 支払利息 (銀行借入金利)</span>
-                                    <span class="font-mono text-rose-400" x-text="'- ' + formatCurrency(company.debt > 0 ? 15000 : 0)"></span>
-                                </div>
-
-                                <div class="flex justify-between text-xs pt-3 border-t border-slate-800 font-bold">
-                                    <span class="text-white">当期(月次)純利益 (Net Profit)</span>
-                                    <span class="font-mono text-base" :class="calculateCurrentMonthlyNetProfit() >= 0 ? 'text-indigo-400' : 'text-rose-400'" x-text="formatCurrency(calculateCurrentMonthlyNetProfit())"></span>
-                                </div>
-                            </div>
-
-                            <div class="p-4 bg-slate-950/40 rounded-2xl border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
-                                <span>累計決算回数: <strong class="text-white font-mono" x-text="company.settlementCount || 0"></strong> 回</span>
-                                <span class="text-indigo-300">毎月30日経過時に自動決算が行われます</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
-                    <div>
-                        <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-landmark text-indigo-400"></i> 銀行融資・借入
-                        </h3>
-                        <p class="text-xs text-slate-400 mb-6">事業拡大のための資金調達を行います。毎月の返済義務が発生するため注意してください。</p>
-                        
-                        <div class="space-y-4 mb-6">
-                            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
-                                <div>
-                                    <div class="font-bold text-sm text-white">ビジネスローン (¥2,000,000)</div>
-                                    <div class="text-xs text-slate-400">月々返済: 約 ¥180,000 / 金利 5%</div>
-                                </div>
-                                <button @click="takeLoan(2000000, 180000)" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow transition">借入する</button>
-                            </div>
-                            <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
-                                <div>
-                                    <div class="font-bold text-sm text-white">大型ベンチャー融資 (¥10,000,000)</div>
-                                    <div class="text-xs text-slate-400">月々返済: 約 ¥850,000 / 金利 4%</div>
-                                </div>
-                                <button @click="takeLoan(10000000, 850000)" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow transition">借入する</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 text-xs flex justify-between items-center">
-                        <div>
-                            <span class="text-slate-400">現在残りの借入金:</span>
-                            <span class="font-mono font-bold text-rose-400 ml-2" x-text="formatCurrency(company.debt)"></span>
-                        </div>
-                        <button @click="repayLoan()" class="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-xl font-semibold transition" x-show="company.debt > 0">全額一括返済</button>
                     </div>
                 </div>
             </div>
@@ -681,344 +661,435 @@
         </main>
     </div>
 
-    <!-- Rename Company Modal -->
-    <div x-show="renameModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-cloak>
-        <div class="bg-slate-900 border border-slate-800 max-w-md w-full p-6 rounded-3xl shadow-2xl space-y-4">
-            <h3 class="text-lg font-bold text-white">会社名の変更</h3>
-            <p class="text-xs text-slate-400">新しい会社名を入力してください。</p>
-            <input type="text" x-model="newCompanyName" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-bold">
-            <div class="flex gap-3 justify-end pt-2">
-                <button @click="renameModal = false" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl transition">キャンセル</button>
-                <button @click="confirmChangeCompanyName()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow transition">変更する</button>
+    <div x-show="customModal.show" x-cloak class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-lg font-bold text-white mb-2" x-text="customModal.title"></h3>
+            <p class="text-sm text-slate-300 mb-6 leading-relaxed" x-text="customModal.message"></p>
+            <button @click="customModal.show = false" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-2xl shadow transition">OK</button>
+        </div>
+    </div>
+
+    <!-- Reset Modal -->
+    <div x-show="resetGameModal" x-cloak class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-lg font-bold text-white mb-2">じめんからやり直しますか？</h3>
+            <p class="text-sm text-slate-300 mb-6">すべてのゲームデータがリセットされ、初期状態から再度スタートします。</p>
+            <div class="flex space-x-3">
+                <button @click="resetGameModal = false" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-2xl transition">キャンセル</button>
+                <button @click="resetGame()" class="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-2xl shadow transition">リセットする</button>
             </div>
         </div>
     </div>
 
-    <!-- Random Event Modal -->
-    <div x-show="currentEvent" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-cloak>
-        <div class="bg-slate-900 border border-slate-800 max-w-lg w-full p-6 rounded-3xl shadow-2xl space-y-4">
-            <div class="flex items-center space-x-3 text-amber-400">
-                <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
-                <h3 class="text-lg font-bold text-white" x-text="currentEvent ? currentEvent.title : ''"></h3>
+    <!-- GAS Cloud Save Modal -->
+    <div x-show="openGasModal" x-cloak class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-table text-emerald-400"></i> Googleスプレッドシート連携
+            </h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Google Apps Script (GAS) のウェブアプリURLを設定することで、スプレッドシートにセーブデータを保存・読み込みできます。
+            </p>
+            
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">GAS ウェブアプリ URL</label>
+                    <input type="text" x-model="gasConfig.url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">プレイヤーID / セーブキー</label>
+                    <input type="text" x-model="gasConfig.userId" placeholder="company_ceo_01" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500 font-mono">
+                </div>
             </div>
-            <p class="text-sm text-slate-300 leading-relaxed" x-text="currentEvent ? currentEvent.description : ''"></p>
-            <div class="pt-4 flex flex-col gap-2.5">
-                <template x-for="choice in (currentEvent ? currentEvent.choices : [])">
-                    <button @click="handleEventChoice(choice)" class="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-700 text-left transition flex items-center justify-between">
-                        <span x-text="choice.text"></span>
-                        <i class="fa-solid fa-chevron-right text-slate-400"></i>
-                    </button>
-                </template>
-            </div>
-        </div>
-    </div>
 
-    <!-- Game Over Modal -->
-    <div x-show="isGameOver" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4" x-cloak>
-        <div class="bg-slate-900 border border-rose-500/30 max-w-md w-full p-8 rounded-3xl shadow-2xl text-center space-y-4">
-            <div class="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto text-3xl border border-rose-500/30">
-                <i class="fa-solid fa-skull"></i>
+            <div class="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <div class="font-bold text-slate-300 mb-1">【GAS側スクリプトの設置手順】</div>
+                <p>1. スプレッドシートの「拡張機能」>「Apps Script」を開く</p>
+                <p>2. 下記のコードを貼り付け、「デプロイ」>「新しいデプロイ」で種類を「ウェブアプリ」にし、アクセス権を「全員」にしてデプロイする</p>
             </div>
-            <h2 class="text-2xl font-bold text-white">倒産のお知らせ (Game Over)</h2>
-            <p class="text-sm text-slate-300">現金資産が底をつき、銀行返済および人件費の支払いが不可能になりました。あなたのベンチャー企業は経営破綻しました。</p>
-            <button @click="resetGame()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-600/30 transition">もう一度会社を立ち上げる</button>
-        </div>
-    </div>
 
-    <!-- Reset Confirmation Modal -->
-    <div x-show="resetGameModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-cloak>
-        <div class="bg-slate-900 border border-slate-800 max-w-md w-full p-6 rounded-3xl shadow-2xl space-y-4 text-center">
-            <h3 class="text-lg font-bold text-white">じめんからやり直しますか？</h3>
-            <p class="text-sm text-slate-300">現在のプレイデータがすべて消去されます。</p>
-            <div class="flex gap-3 justify-center pt-2">
-                <button @click="resetGameModal = false" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-2xl transition">キャンセル</button>
-                <button @click="resetGame(); resetGameModal = false;" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-2xl shadow transition">やり直す</button>
+            <div class="flex space-x-3 pt-2">
+                <button @click="saveToGAS()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-2xl shadow transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> スプレッドシートに保存
+                </button>
+                <button @click="loadFromGAS()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-2xl shadow transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> スプレッドシートから読込
+                </button>
             </div>
+            <button @click="openGasModal = false" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition">閉じる</button>
         </div>
     </div>
 
     <script>
+        let globalDashboardChart = null;
+        let globalFinanceChart = null;
+
         function gameApp() {
             return {
                 currentTab: 'dashboard',
                 isPaused: false,
                 gameSpeed: 1,
-                isGameOver: false,
                 resetGameModal: false,
-                renameModal: false,
-                newCompanyName: '',
-                currentEvent: null,
-
+                openGasModal: false,
+                customModal: { show: false, title: '', message: '' },
+                
                 company: {
-                    name: '株式会社ネオテック',
-                    industry: 'it',
-                    industryName: 'IT・ソフトウェア開発',
+                    name: 'ネクサス・イノベーション株式会社',
+                    industryName: 'IT・ソフトウェア',
                     level: 1,
-                    funds: 5000000,
-                    reputation: 25,
-                    debt: 0,
+                    funds: 10000000,
                     monthlyProfit: 0,
-                    lastMonthRevenue: 0,
-                    settlementCount: 0,
-                    year: 2026,
+                    day: 1,
                     month: 4,
-                    day: 1
+                    year: 2026,
+                    totalDays: 1,
+                    reputation: 10,
+                    loans: 0,
+                    lastMonthRevenue: 0
+                },
+
+                gasConfig: {
+                    url: '',
+                    userId: 'ceo_player_01'
+                },
+
+                lastCashFlow: {
+                    operating: 300000,
+                    investing: 0,
+                    financing: 0,
+                    net: 300000
                 },
 
                 employees: [
-                    { id: 1, name: '佐藤 健一', age: 28, role: 'フロントエンドエンジニア', skill: 45, salary: 350000, morale: 90, avatar: '<i class="fa-solid fa-user-tie"></i>' },
-                    { id: 2, name: '鈴木 美咲', age: 25, role: 'UI/UXデザイナー', skill: 40, salary: 320000, morale: 85, avatar: '<i class="fa-solid fa-user-ninja"></i>' }
+                    { id: 1, name: '佐藤 健一', age: 28, role: 'シニアエンジニア', skill: 75, salary: 450000, morale: 90, avatar: '<i class="fa-solid fa-user-tie"></i>' },
+                    { id: 2, name: '鈴木 美咲', age: 25, role: 'UI/UXデザイナー', skill: 65, salary: 380000, morale: 85, avatar: '<i class="fa-solid fa-user-pen"></i>' }
                 ],
 
+                recruitmentCandidates: [],
+                availableProjects: [],
+                activeProjects: [],
+                companyLogs: [],
+                
                 stocks: [
-                    { id: 1, name: 'テックギガインデックス (TGI)', price: 1200, shares: 0, dividend: 15 },
-                    { id: 2, name: 'グローバル・エナジー (GEH)', price: 850, shares: 0, dividend: 12 },
-                    { id: 3, name: 'ネオ未来ファンド (NFF)', price: 3400, shares: 0, dividend: 40 }
+                    { id: 1, name: 'テクノ・リサーチ株', price: 12000, shares: 0, dividend: 350 },
+                    { id: 2, name: 'グローバル・ファンド', price: 25000, shares: 0, dividend: 800 },
+                    { id: 3, name: 'バイオメディカル株', price: 8500, shares: 0, dividend: 200 }
                 ],
 
-                properties: [
-                    { id: 1, name: '渋谷区小規模オフィスビル', price: 15000000, monthlyRent: 120000, owned: false },
-                    { id: 2, name: '港区プレミアム商業ビル', price: 45000000, monthlyRent: 380000, owned: false },
-                    { id: 3, name: '横浜みなとみらいテナント土地', price: 28000000, monthlyRent: 220000, owned: false }
+                realEstates: [
+                    { id: 1, name: '渋谷区 スタートアップオフィス', price: 15000000, income: 450000, owned: false },
+                    { id: 2, name: '港区 六本木ヒルズテナント', price: 60000000, income: 2100000, owned: false },
+                    { id: 3, name: '横浜みなとみらい ビル1フロア', price: 35000000, income: 1100000, owned: false }
                 ],
 
                 subsidiaries: [
-                    { id: 1, name: 'ネオAIラボ株式会社', industry: '人工知能開発', cost: 10000000, monthlyProfit: 250000, owned: false, assetValue: 8000000, description: '最先端の生成AIモデルおよび機械学習アルゴリズムを研究開発する中核子会社。' },
-                    { id: 2, name: 'フィンテックネオ証券', industry: '金融・決済', cost: 25000000, monthlyProfit: 650000, owned: false, assetValue: 20000000, description: 'オンライン証券およびキャッシュレス決済システムを提供する高収益企業。' },
-                    { id: 3, name: 'ネオコマース流通', industry: 'EC・小売', cost: 15000000, monthlyProfit: 380000, owned: false, assetValue: 12000000, description: '国内外の特選雑貨やデジタルガジェットを扱う大型ECプラットフォーム。' },
-                    { id: 4, name: 'ネオメディア・パブリッシング', industry: 'メディア・広告', cost: 8000000, monthlyProfit: 180000, owned: false, assetValue: 6000000, description: 'Webマーケティング、ニュースメディア運営、インフルエンサー事務所。' },
-                    { id: 5, name: 'ネオクラウドインフラ', industry: 'クラウド・SaaS', cost: 35000000, monthlyProfit: 950000, owned: false, assetValue: 30000000, description: '企業向けの大規模サーバーレス環境やデータベース基盤を提供するインフラ企業。' },
-                    { id: 6, name: 'ネオロボティクス', industry: 'ハードウェア', cost: 50000000, monthlyProfit: 1400000, owned: false, assetValue: 42000000, description: '自動化倉庫ロボットやスマートホームデバイスを製造・販売する先端ハード企業。' },
-                    { id: 7, name: 'ネオバイオメディカル', industry: 'ヘルスケア', cost: 40000000, monthlyProfit: 1100000, owned: false, assetValue: 34000000, description: '遺伝子解析やオンライン医療プラットフォームを展開するバイオベンチャー。' },
-                    { id: 8, name: 'ネオゲームス・スタジオ', industry: 'エンターテインメント', cost: 18000000, monthlyProfit: 450000, owned: false, assetValue: 15000000, description: '大ヒットスマホゲームやメタバース空間の構築を手がけるエンタメ企業。' },
-                    { id: 9, name: 'ネオグリーン・エナジー', industry: 'クリーンエネルギー', cost: 60000000, monthlyProfit: 1800000, owned: false, assetValue: 50000000, description: '太陽光・風力発電ファームの運営および次世代蓄電池の開発事業。' },
-                    { id: 10, name: 'ネオグローバル不動産', industry: '不動産開発', cost: 80000000, monthlyProfit: 2500000, owned: false, assetValue: 70000000, description: '都心の一等地や商業ビルの開発・マネジメントを行うグループ最大の投資会社。' },
-                    { id: 11, name: 'ネオセキュリティ・プロ', industry: 'サイバーセキュリティ', cost: 22000000, monthlyProfit: 580000, owned: false, assetValue: 18000000, description: '企業のサイバー攻撃対策、脆弱性診断、SOC監視サービスを提供する専門企業。' },
-                    { id: 12, name: 'ネオ宇宙開発イニシアチブ', industry: '宇宙ビジネス', cost: 150000000, monthlyProfit: 5000000, owned: false, assetValue: 130000000, description: '小型人工衛星の打ち上げや宇宙ゴミ除去技術に挑む最先端コングロマリット企業。' }
+                    { id: 1, name: 'ネクサスAIソリューションズ', industry: '人工知能AI', cost: 10000000, monthlyIncome: 850000, owned: false, description: '最先端の生成AI・LLMモデルおよび企業向け受託開発を行う子会社。' },
+                    { id: 2, name: 'ネクサスフィンテック', industry: '金融・決済', cost: 25000000, monthlyIncome: 2200000, owned: false, description: 'オンライン決済システムおよびブロックチェーン技術を展開する子会社。' },
+                    { id: 3, name: 'ネクサスマーケティング', industry: '広告・メディア', cost: 15000000, monthlyIncome: 1200000, owned: false, description: 'SNSマーケティングやWebブランディングを専門とする子会社。' }
                 ],
 
-                activeProjects: [],
-                availableProjects: [],
-                recruitmentCandidates: [],
-                companyLogs: [],
-                monthlyHistory: [
-                    { month: '1月', sales: 0, profit: 0 },
-                    { month: '2月', sales: 0, profit: 0 },
-                    { month: '3月', sales: 0, profit: 0 },
-                    { month: '4月', sales: 1200000, profit: 400000 }
-                ],
-
-                dashboardChartInstance: null,
-                financeChartInstance: null,
+                financialHistory: {
+                    labels: ['4月 (初期)'],
+                    revenue: [0],
+                    profit: [0]
+                },
 
                 initGame() {
                     this.loadGame();
-                    this.generateProjects();
-                    this.generateCandidates();
-                    this.addLog('会社を設立しました。事業を加速していきましょう！');
-                    
-                    // 時間経過：10秒ごとに1日進む仕様
+                    this.refreshProjects();
+                    this.refreshCandidates();
+                    this.initCharts();
+                    this.startLoop();
+                },
+
+                startLoop() {
                     setInterval(() => {
-                        if (!this.isPaused && !this.isGameOver) {
-                            this.gameTick();
-                        }
-                    }, 10000);
-
-                    this.$nextTick(() => {
-                        this.updateCharts();
-                    });
+                        if (this.isPaused) return;
+                        this.tick();
+                    }, 3000 / this.gameSpeed);
                 },
 
-                promptChangeCompanyName() {
-                    this.newCompanyName = this.company.name;
-                    this.renameModal = true;
-                },
-
-                confirmChangeCompanyName() {
-                    if (this.newCompanyName.trim()) {
-                        let oldName = this.company.name;
-                        this.company.name = this.newCompanyName.trim();
-                        this.addLog(`会社名を「${oldName}」から「${this.company.name}」に変更しました。`);
-                    }
-                    this.renameModal = false;
-                },
-
-                gameTick() {
+                tick() {
                     this.company.day++;
+                    this.company.totalDays++;
+
+                    let totalWorkPower = this.employees.reduce((sum, emp) => sum + (emp.skill * (emp.morale / 100)), 0);
+                    if (this.activeProjects.length > 0) {
+                        let workPerProject = totalWorkPower / this.activeProjects.length;
+                        this.activeProjects.forEach(proj => {
+                            proj.workDone += workPerProject * 0.35;
+                            proj.progress = Math.min(100, (proj.workDone / proj.workRequired) * 100);
+                        });
+
+                        let completed = this.activeProjects.filter(p => p.workDone >= p.workRequired);
+                        completed.forEach(p => {
+                            this.company.funds += p.reward;
+                            this.company.lastMonthRevenue += p.reward;
+                            this.company.reputation += 5;
+                            this.logEvent(`プロジェクト「${p.name}」が完了しました！報酬 ${this.formatCurrency(p.reward)} を獲得。`);
+                        });
+                        this.activeProjects = this.activeProjects.filter(p => p.workDone < p.workRequired);
+                    }
+
                     if (this.company.day > 30) {
-                        this.company.day = 1;
-                        this.executeMonthlySettlement();
-                    }
-
-                    let totalSkill = this.employees.reduce((acc, emp) => acc + emp.skill, 0);
-                    let workIncrement = Math.max(3, (totalSkill / 4));
-
-                    this.activeProjects.forEach(proj => {
-                        proj.progress += (workIncrement / proj.workRequired) * 100;
-                        if (proj.progress >= 100) {
-                            this.completeProject(proj);
-                        }
-                    });
-                },
-
-                completeProject(project) {
-                    this.company.funds += project.reward;
-                    this.company.reputation += 5;
-                    this.company.lastMonthRevenue = (this.company.lastMonthRevenue || 0) + project.reward;
-                    this.addLog(`プロジェクト「${project.name}」が完了しました！ 報酬: ¥${project.reward.toLocaleString()}`);
-                    
-                    this.activeProjects = this.activeProjects.filter(p => p.id !== project.id);
-                    
-                    if (Math.random() < 0.35) {
-                        this.triggerRandomEvent();
+                        this.processMonthEnd();
                     }
                 },
 
-                executeMonthlySettlement() {
+                processMonthEnd() {
+                    this.company.day = 1;
                     this.company.month++;
                     if (this.company.month > 12) {
                         this.company.month = 1;
                         this.company.year++;
+                        this.company.level++;
                     }
 
-                    let stockDividends = this.getTotalStockDividends();
-                    this.stocks.forEach(stock => {
-                        let change = (Math.random() * 0.27 - 0.12);
-                        stock.price = Math.max(100, Math.floor(stock.price * (1 + change)));
-                    });
+                    let totalSalaries = this.getTotalSalaries();
+                    let passiveIncome = this.getTotalPassiveIncome();
+                    let netIncome = (this.company.lastMonthRevenue || 0) + passiveIncome - totalSalaries;
+                    let currentRevenue = this.company.lastMonthRevenue || 0;
+                    
+                    let operatingCF = currentRevenue + passiveIncome - totalSalaries;
+                    let investingCF = this.monthlyInvestingCF || 0;
+                    let financingCF = this.monthlyFinancingCF || 0;
+                    let netCF = operatingCF + investingCF + financingCF;
 
-                    let propertyIncome = this.getTotalPropertyIncome();
-                    let subsidiaryIncome = this.getTotalSubsidiaryIncome();
-                    let totalSalaries = this.calculateTotalSalaries();
-                    let officeRent = this.company.level * 150000;
-                    let loanPayment = this.company.debt > 0 ? 180000 : 0;
-                    let totalExpenses = totalSalaries + officeRent + loanPayment;
+                    this.lastCashFlow = {
+                        operating: operatingCF,
+                        investing: investingCF,
+                        financing: financingCF,
+                        net: netCF
+                    };
+                    this.monthlyInvestingCF = 0;
+                    this.monthlyFinancingCF = 0;
 
-                    let grossRevenue = (this.company.lastMonthRevenue || 0) + propertyIncome + subsidiaryIncome + stockDividends;
-                    let netProfit = grossRevenue - totalExpenses;
-
-                    this.company.funds += grossRevenue - totalExpenses;
-                    this.company.monthlyProfit = netProfit;
-                    this.company.settlementCount = (this.company.settlementCount || 0) + 1;
-
-                    this.monthlyHistory.push({
-                        month: `${this.company.month}月`,
-                        sales: grossRevenue,
-                        profit: netProfit
-                    });
-                    if (this.monthlyHistory.length > 12) {
-                        this.monthlyHistory.shift();
-                    }
-
-                    this.addLog(`[${this.company.year}年${this.company.month}月] 月次決算完了。総収入: ¥${grossRevenue.toLocaleString()} / 純利益: ¥${netProfit.toLocaleString()}`);
-
+                    this.company.funds += netIncome;
+                    this.company.monthlyProfit = netIncome;
                     this.company.lastMonthRevenue = 0;
-                    this.updateCharts();
 
-                    if (this.company.funds < 0) {
-                        this.isGameOver = true;
+                    // 実際の決算実績をグラフ履歴に追加
+                    this.financialHistory.labels.push(`${this.company.year}年${this.company.month}月`);
+                    this.financialHistory.revenue.push(currentRevenue);
+                    this.financialHistory.profit.push(netIncome);
+
+                    if (this.financialHistory.labels.length > 12) {
+                        this.financialHistory.labels.shift();
+                        this.financialHistory.revenue.shift();
+                        this.financialHistory.profit.shift();
                     }
+
+                    this.employees.forEach(emp => {
+                        if (this.company.funds < 0) {
+                            emp.morale = Math.max(10, emp.morale - 15);
+                        } else {
+                            emp.morale = Math.min(100, emp.morale + 2);
+                        }
+                    });
+
+                    this.logEvent(`【月末決算】今月の純利益: ${this.formatCurrency(netIncome)} (営業CF: ${this.formatCurrency(operatingCF)})`);
+                    this.saveGame();
+                    this.updateCharts();
+                    this.updateFinanceCharts();
                 },
 
                 nextMonthManual() {
-                    this.company.day = 1;
-                    this.executeMonthlySettlement();
+                    this.company.day = 30;
+                    this.tick();
                 },
 
-                calculateTotalSalaries() {
-                    return this.employees.reduce((acc, emp) => acc + emp.salary, 0);
+                getTotalSalaries() {
+                    return this.employees.reduce((sum, emp) => sum + emp.salary, 0);
                 },
 
-                getTotalStockValue() {
-                    return this.stocks.reduce((acc, s) => acc + (s.price * s.shares), 0);
+                getTotalPassiveIncome() {
+                    let realEstateIncome = this.realEstates.filter(r => r.owned).reduce((sum, r) => sum + r.income, 0);
+                    let subsidiaryIncome = this.subsidiaries.filter(s => s.owned).reduce((sum, s) => sum + s.monthlyIncome, 0);
+                    let dividendIncome = this.stocks.reduce((sum, st) => sum + (st.shares * st.dividend), 0);
+                    return realEstateIncome + subsidiaryIncome + dividendIncome;
                 },
 
-                getTotalStockDividends() {
-                    return this.stocks.reduce((acc, s) => acc + (s.dividend * s.shares), 0);
+                calculateRealEstateValue() {
+                    return this.realEstates.filter(r => r.owned).reduce((sum, r) => sum + r.price, 0);
                 },
 
-                getTotalPropertyAssetValue() {
-                    return this.properties.filter(p => p.owned).reduce((acc, p) => acc + p.price, 0);
+                calculateStockValue() {
+                    return this.stocks.reduce((sum, st) => sum + (st.price * st.shares), 0);
                 },
 
-                getTotalPropertyIncome() {
-                    return this.properties.filter(p => p.owned).reduce((acc, p) => acc + p.monthlyRent, 0);
+                calculateTotalAssets() {
+                    return this.company.funds + this.calculateRealEstateValue() + this.calculateStockValue();
                 },
 
-                getTotalSubsidiaryAssetValue() {
-                    return this.subsidiaries.filter(s => s.owned).reduce((acc, s) => acc + s.assetValue, 0);
+                calculateNetAssets() {
+                    return this.calculateTotalAssets() - (this.company.loans || 0);
                 },
 
-                getTotalSubsidiaryIncome() {
-                    return this.subsidiaries.filter(s => s.owned).reduce((acc, s) => acc + s.monthlyProfit, 0);
+                getWorkloadPercentage() {
+                    if (this.employees.length === 0) return 0;
+                    let required = this.activeProjects.reduce((sum, p) => sum + (p.workRequired - p.workDone), 0);
+                    let capacity = this.employees.reduce((sum, emp) => sum + emp.skill, 0) * 5;
+                    return Math.min(100, Math.round((required / (capacity || 1)) * 100));
                 },
 
-                calculateCurrentMonthlyNetProfit() {
-                    let gross = (this.company.lastMonthRevenue || 0) + this.getTotalPropertyIncome() + this.getTotalSubsidiaryIncome() + this.getTotalStockDividends();
-                    let expenses = this.calculateTotalSalaries() + (this.company.level * 150000) + (this.company.debt > 0 ? 15000 : 0);
-                    return gross - expenses;
+                takeLoan(amount) {
+                    this.company.funds += amount;
+                    this.company.loans = (this.company.loans || 0) + amount;
+                    this.monthlyFinancingCF = (this.monthlyFinancingCF || 0) + amount;
+                    this.logEvent(`銀行から ${this.formatCurrency(amount)} の融資を受けました（負債追加）。`);
+                },
+
+                repayLoan(amount) {
+                    if (this.company.loans < amount) {
+                        amount = this.company.loans;
+                    }
+                    if (amount <= 0) {
+                        this.showModal('返済エラー', '現在返済する借入金はありません。');
+                        return;
+                    }
+                    if (this.company.funds < amount) {
+                        this.showModal('資金不足', '借入金を返済するための現金が不足しています。');
+                        return;
+                    }
+                    this.company.funds -= amount;
+                    this.company.loans -= amount;
+                    this.monthlyFinancingCF = (this.monthlyFinancingCF || 0) - amount;
+                    this.logEvent(`銀行へ ${this.formatCurrency(amount)} の借入金返済を行いました。`);
+                },
+
+                refreshProjects() {
+                    const categories = ['Webアプリケーション', 'AIシステム開発', 'スマホアプリ', 'クラウドインフラ構築'];
+                    let newProjects = [];
+                    for (let i = 1; i <= 3; i++) {
+                        let diff = Math.floor(Math.random() * 3) + 1;
+                        newProjects.push({
+                            id: Date.now() + i,
+                            name: `受託開発案件 #${Math.floor(Math.random() * 900) + 100}`,
+                            category: categories[Math.floor(Math.random() * categories.length)],
+                            difficulty: '★'.repeat(diff),
+                            reward: diff * 450000 + Math.floor(Math.random() * 200000),
+                            workRequired: diff * 300 + Math.floor(Math.random() * 100),
+                            workDone: 0,
+                            progress: 0,
+                            description: 'クライアント企業からの要望に基づく高品質なシステム開発・実装プロジェクト。'
+                        });
+                    }
+                    this.availableProjects = newProjects;
+                },
+
+                acceptProject(proj) {
+                    this.availableProjects = this.availableProjects.filter(p => p.id !== proj.id);
+                    this.activeProjects.push(proj);
+                    this.logEvent(`案件「${proj.name}」を受注しました。開発を開始します。`);
+                },
+
+                refreshCandidates() {
+                    const roles = ['フロントエンドエンジニア', 'バックエンドエンジニア', 'UI/UXデザイナー', 'データサイエンティスト'];
+                    let candidates = [];
+                    for (let i = 1; i <= 3; i++) {
+                        candidates.push({
+                            id: Date.now() + i,
+                            name: ['田中 勇気', '高橋 翔', '渡辺 美鈴', '伊藤 葵', '小林 健太'][Math.floor(Math.random() * 5)],
+                            age: Math.floor(Math.random() * 15) + 24,
+                            role: roles[Math.floor(Math.random() * roles.length)],
+                            skill: Math.floor(Math.random() * 40) + 50,
+                            salary: Math.floor(Math.random() * 200000) + 300000,
+                            avatar: '<i class="fa-solid fa-user"></i>'
+                        });
+                    }
+                    this.recruitmentCandidates = candidates;
+                },
+
+                hireCandidate(candidate) {
+                    let fee = 200000;
+                    if (this.company.funds < fee) {
+                        this.showModal('資金不足', '採用手数料（¥200,000）を支払う現金が不足しています。');
+                        return;
+                    }
+                    this.company.funds -= fee;
+                    this.recruitmentCandidates = this.recruitmentCandidates.filter(c => c.id !== candidate.id);
+                    this.employees.push({
+                        id: Date.now(),
+                        name: candidate.name,
+                        age: candidate.age,
+                        role: candidate.role,
+                        skill: candidate.skill,
+                        salary: candidate.salary,
+                        morale: 95,
+                        avatar: '<i class="fa-solid fa-user-check"></i>'
+                    });
+                    this.logEvent(`${candidate.name} (${candidate.role}) を採用しました！`);
+                },
+
+                trainEmployee(emp) {
+                    let cost = 50000;
+                    if (this.company.funds < cost) {
+                        this.showModal('資金不足', '研修費用（¥50,000）が不足しています。');
+                        return;
+                    }
+                    this.company.funds -= cost;
+                    emp.skill += 5;
+                    emp.morale = Math.min(100, emp.morale + 10);
+                    this.logEvent(`${emp.name} の社内研修を実施しました。スキルが向上しました。`);
+                },
+
+                fireEmployee(id) {
+                    this.employees = this.employees.filter(e => e.id !== id);
+                    this.logEvent('社員が退職しました。');
                 },
 
                 buyStock(stock) {
                     let cost = stock.price * 100;
                     if (this.company.funds < cost) {
-                        this.addLog('株式購入のための資金が不足しています。');
+                        this.showModal('資金不足', '株式を購入するための現金が不足しています。');
                         return;
                     }
                     this.company.funds -= cost;
                     stock.shares += 100;
-                    this.addLog(`${stock.name} を100株購入しました。`);
+                    this.monthlyInvestingCF = (this.monthlyInvestingCF || 0) - cost;
+                    this.logEvent(`${stock.name} を100株購入しました。`);
                 },
 
                 sellStock(stock) {
-                    if (stock.shares < 100) return;
+                    if (stock.shares < 100) {
+                        this.showModal('保有株なし', '売却できる株式がありません。');
+                        return;
+                    }
                     let revenue = stock.price * 100;
                     this.company.funds += revenue;
                     stock.shares -= 100;
-                    this.addLog(`${stock.name} を100株売却しました。`);
+                    this.monthlyInvestingCF = (this.monthlyInvestingCF || 0) + revenue;
+                    this.logEvent(`${stock.name} を100株売却しました。`);
                 },
 
-                buyProperty(prop) {
+                buyRealEstate(prop) {
                     if (this.company.funds < prop.price) {
-                        this.addLog('不動産購入のための資金が不足しています。');
+                        this.showModal('資金不足', '不動産を購入するための現金が不足しています。');
                         return;
                     }
                     this.company.funds -= prop.price;
                     prop.owned = true;
-                    this.addLog(`不動産「${prop.name}」を購入しました！毎月の家賃収入が発生します。`);
+                    this.monthlyInvestingCF = (this.monthlyInvestingCF || 0) - prop.price;
+                    this.logEvent(`不動産「${prop.name}」を取得しました！毎月賃料収入が得られます。`);
                 },
 
-                sellProperty(prop) {
-                    this.company.funds += prop.price;
-                    prop.owned = false;
-                    this.addLog(`不動産「${prop.name}」を売却しました。`);
-                },
-
-                foundSubsidiary(sub) {
+                buySubsidiary(sub) {
                     if (this.company.funds < sub.cost) {
-                        this.addLog('子会社を設立するための資金が不足しています。');
+                        this.showModal('資金不足', '子会社を買収するための資金が不足しています。');
                         return;
                     }
                     this.company.funds -= sub.cost;
                     sub.owned = true;
-                    this.addLog(`子会社「${sub.name}」を設立しました！グループ全体に毎月利益が貢献します。`);
+                    this.monthlyInvestingCF = (this.monthlyInvestingCF || 0) - sub.cost;
+                    this.logEvent(`子会社「${sub.name}」を設立・買収しました！グループ経営が強化されます。`);
                 },
 
-                sellSubsidiary(sub) {
-                    let sellPrice = Math.floor(sub.assetValue * 1.2);
-                    let profit = sellPrice - sub.cost;
-                    this.company.funds += sellPrice;
-                    this.company.lastMonthRevenue = (this.company.lastMonthRevenue || 0) + sellPrice;
-                    sub.owned = false;
-                    this.addLog(`子会社「${sub.name}」を売却し、利益確定しました！ 売却益: ¥${sellPrice.toLocaleString()} (純利益: ¥${profit.toLocaleString()})`);
-                },
-
-                getDateString() {
-                    return `${this.company.year}年 ${this.company.month}月`;
-                },
-
-                formatCurrency(amount) {
-                    return '¥' + Math.floor(amount).toLocaleString();
+                promptChangeCompanyName() {
+                    let newName = prompt('新しい会社名を入力してください:', this.company.name);
+                    if (newName && newName.trim() !== '') {
+                        this.company.name = newName.trim();
+                        this.logEvent(`社名を「${this.company.name}」に変更しました。`);
+                    }
                 },
 
                 togglePause() {
@@ -1029,334 +1100,226 @@
                     this.gameSpeed = this.gameSpeed === 1 ? 2 : (this.gameSpeed === 2 ? 5 : 1);
                 },
 
-                generateProjects() {
-                    const titles = [
-                        'ECサイトリニューアル案件',
-                        'スマホ向けパズルゲーム開発',
-                        '基幹系クラウドシステム構築',
-                        'AIチャットボット導入支援',
-                        'コーポレートサイト制作'
-                    ];
-                    let count = Math.min(10, 3 + Math.floor(this.company.reputation / 10));
-                    let generated = [];
-                    for (let i = 0; i < count; i++) {
-                        let title = titles[Math.floor(Math.random() * titles.length)];
-                        generated.push({
-                            id: Date.now() + i + Math.random(),
-                            name: title + ` #${i+1}`,
-                            category: '受託開発',
-                            difficulty: Math.floor(Math.random() * 3) + 1,
-                            reward: (Math.floor(Math.random() * 8) + 3) * 200000,
-                            workRequired: (Math.floor(Math.random() * 3) + 1) * 30,
-                            progress: 0
-                        });
+                resetGame() {
+                    localStorage.removeItem('ventureTycoonSave');
+                    location.reload();
+                },
+
+                saveGame() {
+                    const saveData = {
+                        company: this.company,
+                        employees: this.employees,
+                        stocks: this.stocks,
+                        realEstates: this.realEstates,
+                        subsidiaries: this.subsidiaries,
+                        companyLogs: this.companyLogs,
+                        financialHistory: this.financialHistory
+                    };
+                    localStorage.setItem('ventureTycoonSave', JSON.stringify(saveData));
+                },
+
+                loadGame() {
+                    const saved = localStorage.getItem('ventureTycoonSave');
+                    const savedGas = localStorage.getItem('ventureTycoonGasConfig');
+                    if (savedGas) {
+                        try { this.gasConfig = JSON.parse(savedGas); } catch(e){}
                     }
-                    this.availableProjects = generated;
-                },
-
-                refreshProjects() {
-                    this.generateProjects();
-                    this.addLog('新しい案件ボードを更新しました。');
-                },
-
-                acceptProject(project) {
-                    if (this.activeProjects.length >= 3) {
-                        this.addLog('同時に進行できるプロジェクトは最大3件までです。');
-                        return;
-                    }
-                    this.availableProjects = this.availableProjects.filter(p => p.id !== project.id);
-                    this.activeProjects.push(project);
-                    this.addLog(`プロジェクト「${project.name}」を受注しました。`);
-                },
-
-                generateCandidates() {
-                    const names = ['高橋 翔太', '渡辺 葵', '伊藤 蓮', '中村 さくら', '小林 拓海', '加藤 結衣'];
-                    const roles = ['バックエンドエンジニア', 'フロントエンドエンジニア', 'UI/UXデザイナー', 'マーケター'];
-                    const avatars = [
-                        '<i class="fa-solid fa-user-astronaut"></i>',
-                        '<i class="fa-solid fa-user-graduate"></i>',
-                        '<i class="fa-solid fa-user-gear"></i>',
-                        '<i class="fa-solid fa-user-shield"></i>'
-                    ];
-                    this.recruitmentCandidates = names.slice(0, 3).map((name, idx) => ({
-                        id: Date.now() + idx,
-                        name: name,
-                        age: Math.floor(Math.random() * 15) + 22,
-                        role: roles[Math.floor(Math.random() * roles.length)],
-                        skill: Math.floor(Math.random() * 40) + 30,
-                        salary: (Math.floor(Math.random() * 3) + 3) * 100000,
-                        avatar: avatars[Math.floor(Math.random() * avatars.length)]
-                    }));
-                },
-
-                refreshCandidates() {
-                    this.generateCandidates();
-                    this.addLog('人材エージェントから新しい候補者リストを取り寄せました。');
-                },
-
-                hireCandidate(candidate) {
-                    if (this.company.funds < 500000) {
-                        this.addLog('採用資金（初期手数料含む）が不足しています。');
-                        return;
-                    }
-                    this.company.funds -= 200000;
-                    this.employees.push({ ...candidate, morale: 90 });
-                    this.recruitmentCandidates = this.recruitmentCandidates.filter(c => c.id !== candidate.id);
-                    this.addLog(`${candidate.name}さん（${candidate.role}）を採用しました！`);
-                },
-
-                fireEmployee(id) {
-                    this.employees = this.employees.filter(e => e.id !== id);
-                    this.addLog('社員を解雇しました。');
-                },
-
-                trainEmployee(emp) {
-                    if (this.company.funds < 50000) {
-                        this.addLog('研修資金（¥50,000）が不足しています。');
-                        return;
-                    }
-                    this.company.funds -= 50000;
-                    emp.skill += 10;
-                    emp.morale = Math.min(100, emp.morale + 10);
-                    this.addLog(`${emp.name}の研修を実施しました。スキルが向上しました！`);
-                },
-
-                investMarketing() {
-                    if (this.company.funds < 200000) {
-                        this.addLog('広告宣伝費（¥200,000）が不足しています。');
-                        return;
-                    }
-                    this.company.funds -= 200000;
-                    this.company.reputation += 15;
-                    this.addLog('Web広告キャンペーンを実施しました。知名度が向上しました！');
-                },
-
-                upgradeOffice() {
-                    let cost = this.company.level * 1000000;
-                    if (this.company.funds < cost) {
-                        this.addLog('オフィス移転費用が不足しています。');
-                        return;
-                    }
-                    this.company.funds -= cost;
-                    this.company.level++;
-                    this.addLog(`オフィスをアップグレードしました！ 現在のレベル: ${this.company.level}`);
-                },
-
-                takeLoan(amount, monthlyPayment) {
-                    this.company.funds += amount;
-                    this.company.debt += amount;
-                    this.addLog(`銀行から ¥${amount.toLocaleString()} の融資を受けました。`);
-                },
-
-                repayLoan() {
-                    if (this.company.funds < this.company.debt) {
-                        this.addLog('一括返済するための資金が不足しています。');
-                        return;
-                    }
-                    this.company.funds -= this.company.debt;
-                    this.company.debt = 0;
-                    this.addLog('借入金を全額一括返済しました。');
-                },
-
-                triggerRandomEvent() {
-                    const events = [
-                        // --- 災害・インフラ障害系イベント（収入圧迫） ---
-                        {
-                            title: '【災害・停電】大規模台風によるオフィス被災',
-                            description: '大型台風が直撃し、オフィスの窓ガラス破損および一時的な停電が発生！復旧費用と業務遅延による売上への打撃が生じています。',
-                            choices: [
-                                { text: '緊急復旧・補修工事を行う (費用-¥350,000)', action: () => { this.company.funds -= 350000; this.addLog('台風災害の復旧工事を迅速に行い、被害を最小限に抑えました。'); } },
-                                { text: '最低限の自力復旧ですませる (売上一時圧迫-¥500,000)', action: () => { this.company.lastMonthRevenue = Math.max(0, (this.company.lastMonthRevenue || 0) - 500000); this.addLog('災害による業務停止で今期売上が大幅に圧迫されました。'); } }
-                            ]
-                        },
-                        {
-                            title: '【インフラ障害】クラウドサーバーの大規模障害',
-                            description: '利用している大手クラウド基盤がダウン！運営中のWebサービスや進行案件のデータ検証に深刻な遅れが生じ、クライアントからの損害賠償リスクが発生しています。',
-                            choices: [
-                                { text: '専用の冗長回線を手配して急場を凌ぐ (費用-¥400,000)', action: () => { this.company.funds -= 400000; this.addLog('即座にバックアップ環境を構築し、クライアントへの信頼を守りました。'); } },
-                                { text: '復旧を待つ (信用低下＆売上遅延-¥600,000)', action: () => { this.company.reputation = Math.max(0, this.company.reputation - 15); this.company.lastMonthRevenue = Math.max(0, (this.company.lastMonthRevenue || 0) - 600000); this.addLog('サーバー障害の影響で案件遅延が発生し、会社の信頼と売上に大打撃を受けました。'); } }
-                            ]
-                        },
-                        {
-                            title: '【災害】関東圏を襲う突然の震度5強の地震',
-                            description: '突然の強い地震により、社内のサーバーラックやPC機器が転倒。精密機器の買い替えと安全点検が必要になりました。',
-                            choices: [
-                                { text: '専門業者に点検と機器交換を依頼 (費用-¥450,000)', action: () => { this.company.funds -= 450000; this.addLog('地震による被害機器を速やかに新品へ交換し、業務を再開しました。'); } },
-                                { text: '中古パーツで安価にDIY復旧 (スキル低下)', action: () => { if(this.employees.length > 0) { this.employees[0].skill = Math.max(10, this.employees[0].skill - 10); } this.addLog('社員総出で復旧にあたりましたが、業務効率が一時的に低下しました。'); } }
-                            ]
-                        },
-                        {
-                            title: '【社会リスク】新型ウイルスの流行と出社制限',
-                            description: '感染症の急拡大により、全社員の出社禁止およびリモートワークへの完全移行を余儀なくされました。システム導入やセキュリティ対策に追加コストがかかります。',
-                            choices: [
-                                { text: 'リモート環境と手当を即座に整備 (費用-¥300,000)', action: () => { this.company.funds -= 300000; this.addLog('リモートワーク体制を迅速に整え、感染リスクを回避しました。'); } },
-                                { text: '対策を先送りして業務を継続 (モラール激減)', action: () => { this.employees.forEach(e => e.morale = Math.max(10, e.morale - 25)); this.addLog('感染対策の不備から社員の不安と不満が爆発し、モラールが急低下しました。'); } }
-                            ]
-                        },
-                        // --- 通常・チャンス・その他のイベント ---
-                        {
-                            title: '大口クライアントからの追加案件打診',
-                            description: '既存の取引先から、追加機能開発の緊急依頼が舞い込みました。引き受けますか？',
-                            choices: [
-                                { text: '快諾する (報酬+¥500,000)', action: () => { this.company.funds += 500000; this.company.lastMonthRevenue += 500000; this.addLog('追加案件の報酬を獲得しました！'); } },
-                                { text: '辞退する', action: () => { this.addLog('追加案件を辞退しました。'); } }
-                            ]
-                        },
-                        {
-                            title: '優秀なエンジニアのヘッドハンティング',
-                            description: '他社からの引き抜きオファーがあり、社員が転職を考えているようです。対応を迫られています。',
-                            choices: [
-                                { text: '月給を+¥50,000昇給させて引き止める', action: () => { if(this.employees.length > 0) { this.employees[0].salary += 50000; this.addLog('社員の給与を昇給させ、離職を防ぎました。'); } } },
-                                { text: '特に引き止めず様子を見る', action: () => { this.addLog('引き止めませんでしたが、運良く残留してくれました。'); } }
-                            ]
-                        },
-                        {
-                            title: 'メディア取材のオファー！',
-                            description: '有名ITビジネス誌から、当社のユニークな働き方について取材したいと連絡が来ました。',
-                            choices: [
-                                { text: '取材を受ける (知名度+25)', action: () => { this.company.reputation += 25; this.addLog('雑誌取材が掲載され、会社の知名度が大幅にアップしました！'); } },
-                                { text: '多忙のため断る', action: () => { this.addLog('取材を辞退しました。通常業務に専念します。'); } }
-                            ]
-                        },
-                        {
-                            title: 'SNSで自社サービスがバズる！',
-                            description: '社員がSNSに投稿した会社のユーモア溢れる開発風景が、インフルエンサーに取り上げられ大バズりしました！',
-                            choices: [
-                                { text: 'キャンペーン施策に繋げる (資金+¥300,000, 知名度+30)', action: () => { this.company.funds += 300000; this.company.reputation += 30; this.addLog('バズの波に乗り、新規案件の問い合わせと売上が急増しました！'); } }
-                            ]
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            this.company = Object.assign(this.company, data.company);
+                            if (data.employees) this.employees = data.employees;
+                            if (data.stocks) this.stocks = data.stocks;
+                            if (data.realEstates) this.realEstates = data.realEstates;
+                            if (data.subsidiaries) this.subsidiaries = data.subsidiaries;
+                            if (data.companyLogs) this.companyLogs = data.companyLogs;
+                            if (data.financialHistory) this.financialHistory = data.financialHistory;
+                        } catch (e) {
+                            console.error('Save load failed', e);
                         }
-                    ];
-                    this.currentEvent = events[Math.floor(Math.random() * events.length)];
+                    }
+                    if (this.companyLogs.length === 0) {
+                        this.logEvent('会社が創業されました。ベンチャー経営のスタートです！');
+                    }
                 },
 
-                handleEventChoice(choice) {
-                    choice.action();
-                    this.currentEvent = null;
-                },
+                saveToGAS() {
+                    if (!this.gasConfig.url) {
+                        this.showModal('エラー', 'GASのウェブアプリURLを入力してください。');
+                        return;
+                    }
+                    localStorage.setItem('ventureTycoonGasConfig', JSON.stringify(this.gasConfig));
+                    const saveData = {
+                        company: this.company,
+                        employees: this.employees,
+                        stocks: this.stocks,
+                        realEstates: this.realEstates,
+                        subsidiaries: this.subsidiaries,
+                        companyLogs: this.companyLogs,
+                        financialHistory: this.financialHistory
+                    };
 
-                calculateCompanyValue() {
-                    return this.company.funds + this.getTotalStockValue() + this.getTotalPropertyAssetValue() + this.getTotalSubsidiaryAssetValue() + (this.employees.length * 500000) + (this.company.reputation * 50000) - this.company.debt;
-                },
-
-                getAverageSkill() {
-                    if (this.employees.length === 0) return 0;
-                    let sum = this.employees.reduce((acc, emp) => acc + emp.skill, 0);
-                    return Math.floor(sum / this.employees.length);
-                },
-
-                getWorkloadPercentage() {
-                    return Math.min(100, this.activeProjects.length * 33);
-                },
-
-                addLog(message) {
-                    this.companyLogs.push({
-                        id: Date.now() + Math.random(),
-                        message: message,
-                        date: `${this.company.year}年${this.company.month}月`
+                    this.showModal('保存中', 'スプレッドシートへデータを送信中...');
+                    fetch(this.gasConfig.url, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: this.gasConfig.userId,
+                            saveData: saveData
+                        })
+                    }).then(() => {
+                        this.showModal('成功', 'スプレッドシートへの保存リクエストを送信しました！');
+                        this.logEvent('Googleスプレッドシートへデータをクラウドセーブしました。');
+                    }).catch(err => {
+                        this.showModal('通信エラー', 'データの保存に失敗しました: ' + err);
                     });
                 },
 
-                updateCharts() {
-                    const labels = this.monthlyHistory.map(h => h.month);
-                    const salesData = this.monthlyHistory.map(h => h.sales);
-                    const profitData = this.monthlyHistory.map(h => h.profit);
+                loadFromGAS() {
+                    if (!this.gasConfig.url) {
+                        this.showModal('エラー', 'GASのウェブアプリURLを入力してください。');
+                        return;
+                    }
+                    localStorage.setItem('ventureTycoonGasConfig', JSON.stringify(this.gasConfig));
+                    const loadUrl = `${this.gasConfig.url}?userId=${encodeURIComponent(this.gasConfig.userId)}`;
+                    
+                    this.showModal('読込中', 'スプレッドシートからデータを取得中...');
+                    fetch(loadUrl)
+                        .then(res => res.json())
+                        .then(res => {
+                            if (res.status === 'success' && res.saveData) {
+                                const data = res.saveData;
+                                this.company = Object.assign(this.company, data.company);
+                                if (data.employees) this.employees = data.employees;
+                                if (data.stocks) this.stocks = data.stocks;
+                                if (data.realEstates) this.realEstates = data.realEstates;
+                                if (data.subsidiaries) this.subsidiaries = data.subsidiaries;
+                                if (data.companyLogs) this.companyLogs = data.companyLogs;
+                                if (data.financialHistory) this.financialHistory = data.financialHistory;
+                                
+                                this.saveGame();
+                                this.updateCharts();
+                                this.updateFinanceCharts();
+                                this.showModal('成功', 'スプレッドシートからデータを正常に読み込みました！');
+                                this.logEvent('Googleスプレッドシートからデータをロードしました。');
+                                this.openGasModal = false;
+                            } else {
+                                this.showModal('エラー', 'データが見つからないか、形式が正しくありません: ' + (res.message || ''));
+                            }
+                        })
+                        .catch(err => {
+                            this.showModal('通信エラー', 'データの読み込みに失敗しました（CORS設定等をご確認ください）。');
+                        });
+                },
 
-                    const ctx1 = document.getElementById('dashboardChart');
-                    if (ctx1) {
-                        if (this.dashboardChartInstance) {
-                            this.dashboardChartInstance.destroy();
-                        }
-                        this.dashboardChartInstance = new Chart(ctx1, {
-                            type: 'bar',
+                logEvent(message) {
+                    this.companyLogs.push({
+                        id: Date.now() + Math.random(),
+                        message: message,
+                        date: `${this.company.year}年${this.company.month}月 ${this.company.day}日`
+                    });
+                    if (this.companyLogs.length > 50) this.companyLogs.shift();
+                },
+
+                showModal(title, message) {
+                    this.customModal.title = title;
+                    this.customModal.message = message;
+                    this.customModal.show = true;
+                },
+
+                formatCurrency(amount) {
+                    return '¥' + Math.round(amount).toLocaleString();
+                },
+
+                getDateString() {
+                    return `${this.company.year}年 ${this.company.month}月`;
+                },
+
+                initCharts() {
+                    const ctxDashboard = document.getElementById('dashboardChart');
+                    if (ctxDashboard && !globalDashboardChart) {
+                        globalDashboardChart = new Chart(ctxDashboard, {
+                            type: 'line',
                             data: {
-                                labels: labels,
+                                labels: [...this.financialHistory.labels],
                                 datasets: [
-                                    { label: '総売上高', data: salesData, backgroundColor: '#6366f1', borderRadius: 8 },
-                                    { label: '純利益', data: profitData, backgroundColor: '#10b981', borderRadius: 8 }
+                                    {
+                                        label: '売上高',
+                                        data: [...this.financialHistory.revenue],
+                                        borderColor: '#6366f1',
+                                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                        fill: true,
+                                        tension: 0.3
+                                    },
+                                    {
+                                        label: '純利益',
+                                        data: [...this.financialHistory.profit],
+                                        borderColor: '#10b981',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        fill: true,
+                                        tension: 0.3
+                                    }
                                 ]
                             },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
-                                plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                                plugins: { legend: { labels: { color: '#94a3b8' } } },
                                 scales: {
-                                    x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-                                    y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
+                                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(51, 65, 85, 0.3)' } },
+                                    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(51, 65, 85, 0.3)' } }
                                 }
                             }
                         });
+                    }
+
+                    const ctxFinance = document.getElementById('financeChart');
+                    if (ctxFinance && !globalFinanceChart) {
+                        globalFinanceChart = new Chart(ctxFinance, {
+                            type: 'bar',
+                            data: {
+                                labels: [...this.financialHistory.labels],
+                                datasets: [{
+                                    label: '月次利益トレンド',
+                                    data: [...this.financialHistory.profit],
+                                    backgroundColor: '#8b5cf6'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { labels: { color: '#94a3b8' } } },
+                                scales: {
+                                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(51, 65, 85, 0.3)' } },
+                                    y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(51, 65, 85, 0.3)' } }
+                                }
+                            }
+                        });
+                    }
+                },
+
+                updateCharts() {
+                    if (globalDashboardChart) {
+                        globalDashboardChart.data.labels = [...this.financialHistory.labels];
+                        globalDashboardChart.data.datasets[0].data = [...this.financialHistory.revenue];
+                        globalDashboardChart.data.datasets[1].data = [...this.financialHistory.profit];
+                        globalDashboardChart.update();
+                    } else {
+                        this.initCharts();
                     }
                 },
 
                 updateFinanceCharts() {
-                    const labels = this.monthlyHistory.map(h => h.month);
-                    const profitData = this.monthlyHistory.map(h => h.profit);
-
-                    const ctx2 = document.getElementById('financeChart');
-                    if (ctx2) {
-                        if (this.financeChartInstance) {
-                            this.financeChartInstance.destroy();
-                        }
-                        this.financeChartInstance = new Chart(ctx2, {
-                            type: 'line',
-                            data: {
-                                labels: labels,
-                                datasets: [
-                                    { label: '月次純利益トレンド', data: profitData, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.2)', fill: true, tension: 0.3 }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: { legend: { labels: { color: '#cbd5e1' } } },
-                                scales: {
-                                    x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-                                    y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
-                                }
-                            }
-                        });
+                    if (globalFinanceChart) {
+                        globalFinanceChart.data.labels = [...this.financialHistory.labels];
+                        globalFinanceChart.data.datasets[0].data = [...this.financialHistory.profit];
+                        globalFinanceChart.update();
+                    } else {
+                        this.initCharts();
                     }
-                },
-
-                saveGame() {
-                    localStorage.setItem('ventureTycoonProSave', JSON.stringify({
-                        company: this.company,
-                        employees: this.employees,
-                        stocks: this.stocks,
-                        properties: this.properties,
-                        subsidiaries: this.subsidiaries,
-                        activeProjects: this.activeProjects,
-                        companyLogs: this.companyLogs,
-                        monthlyHistory: this.monthlyHistory
-                    }));
-                    this.addLog('ゲームデータをセーブしました。');
-                },
-
-                loadGame() {
-                    const saved = localStorage.getItem('ventureTycoonProSave');
-                    if (saved) {
-                        try {
-                            const data = JSON.parse(saved);
-                            this.company = data.company || this.company;
-                            if (!this.company.day) this.company.day = 1;
-                            this.employees = data.employees || this.employees;
-                            this.stocks = data.stocks || this.stocks;
-                            this.properties = data.properties || this.properties;
-                            this.subsidiaries = data.subsidiaries || this.subsidiaries;
-                            this.activeProjects = data.activeProjects || this.activeProjects;
-                            this.companyLogs = data.companyLogs || this.companyLogs;
-                            this.monthlyHistory = data.monthlyHistory || this.monthlyHistory;
-                        } catch(e) {
-                            console.error('Save load failed', e);
-                        }
-                    }
-                },
-
-                resetGame() {
-                    localStorage.removeItem('ventureTycoonProSave');
-                    location.reload();
                 }
-            }
+            };
         }
     </script>
 </body>
